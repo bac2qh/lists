@@ -8,6 +8,10 @@ pub struct Iter<'a, T> {
     next: Option<&'a Node<T>>,
 }
 
+pub struct IterMut<'a, T> {
+    next: Option<&'a mut Node<T>>,
+}
+
 // yay type aliases!
 type Link<T> = Option<Box<Node<T>>>;
 
@@ -54,6 +58,12 @@ impl<T> List<T> {
             next: self.head.as_deref(),
         }
     }
+
+    pub fn iter_mut<'a>(&'a mut self) -> IterMut<'a, T> {
+        IterMut {
+            next: self.head.as_deref_mut(),
+        }
+    }
 }
 
 impl<T> Drop for List<T> {
@@ -75,9 +85,20 @@ impl<T> Iterator for IntoIter<T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a T;
     fn next(&mut self) -> Option<Self::Item> {
-        self.next.map(|node| {
-            self.next = node.next.as_ref().map::<&Node<T>, _>(|node| &node);
+        self.next.take().map(|node| {
+            // self.next = node.next.as_ref().map::<&Node<T>, _>(|node| &node);
+            self.next = node.next.as_deref();
             &node.elem
+        })
+    }
+}
+
+impl<'a, T> Iterator for IterMut<'a, T> {
+    type Item = &'a mut T;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.next.take().map(|node| {
+            self.next = node.next.as_deref_mut();
+            &mut node.elem
         })
     }
 }
@@ -156,5 +177,18 @@ mod test {
         assert_eq!(iter.next(), Some(&3));
         assert_eq!(iter.next(), Some(&2));
         assert_eq!(iter.next(), Some(&1));
+    }
+
+    #[test]
+    fn iter_mut() {
+        let mut list = List::new();
+        list.push(1);
+        list.push(2);
+        list.push(3);
+
+        let mut iter = list.iter_mut();
+        assert_eq!(iter.next(), Some(&mut 3));
+        assert_eq!(iter.next(), Some(&mut 2));
+        assert_eq!(iter.next(), Some(&mut 1));
     }
 }
